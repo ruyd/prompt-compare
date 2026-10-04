@@ -14,6 +14,17 @@ function formatTokens(n: number) {
   return n.toLocaleString()
 }
 
+// Single requests are often fractions of a cent, so keep two significant digits below $1
+const subDollarFormat = new Intl.NumberFormat('en-US', {
+  style: 'currency', currency: 'USD', minimumSignificantDigits: 2, maximumSignificantDigits: 2,
+})
+const dollarFormat = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
+
+function formatCost(usd: number) {
+  if (usd === 0) return '$0'
+  return usd < 1 ? subDollarFormat.format(usd) : dollarFormat.format(usd)
+}
+
 interface Props {
   config: Config
   apiKey: string
@@ -53,16 +64,17 @@ export function ModelPanel({ config, apiKey, sharedQuery, onQueryConsumed }: Pro
     },
   })
 
-  const totals = messages.reduce<ReplyStats & { replies: number }>(
+  const totals = messages.reduce<Required<ReplyStats> & { replies: number }>(
     (acc, m) => m.stats
       ? {
           replies: acc.replies + 1,
           promptTokens: acc.promptTokens + m.stats.promptTokens,
           completionTokens: acc.completionTokens + m.stats.completionTokens,
           durationMs: acc.durationMs + m.stats.durationMs,
+          cost: acc.cost + (m.stats.cost ?? 0),
         }
       : acc,
-    { replies: 0, promptTokens: 0, completionTokens: 0, durationMs: 0 },
+    { replies: 0, promptTokens: 0, completionTokens: 0, durationMs: 0, cost: 0 },
   )
 
   function sendMessage(text: string) {
@@ -114,6 +126,7 @@ export function ModelPanel({ config, apiKey, sharedQuery, onQueryConsumed }: Pro
             {msg.stats && (
               <div className="msg-stats">
                 {formatTokens(msg.stats.promptTokens)} in · {formatTokens(msg.stats.completionTokens)} out · {formatDuration(msg.stats.durationMs)}
+                {msg.stats.cost !== undefined && <> · {formatCost(msg.stats.cost)}</>}
               </div>
             )}
           </div>
@@ -146,6 +159,15 @@ export function ModelPanel({ config, apiKey, sharedQuery, onQueryConsumed }: Pro
             {formatDuration(totals.durationMs)}
             {totals.replies > 0 && (
               <span className="panel-stat-detail"> (avg {formatDuration(totals.durationMs / totals.replies)})</span>
+            )}
+          </span>
+        </div>
+        <div className="panel-stat">
+          <span className="panel-stat-label">Cost</span>
+          <span className="panel-stat-value">
+            {formatCost(totals.cost)}
+            {totals.replies > 0 && (
+              <span className="panel-stat-detail"> (avg {formatCost(totals.cost / totals.replies)})</span>
             )}
           </span>
         </div>
