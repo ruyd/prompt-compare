@@ -66,7 +66,6 @@
   cursor: default;
 }
 
-/* API key row */
 /* Messages */
 .panel-messages {
   flex: 1;
@@ -132,6 +131,14 @@
   border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
+/* Per-reply stats */
+.msg-stats {
+  font-size: 0.68rem;
+  font-family: var(--mono);
+  color: var(--text-muted);
+  padding-left: 2px;
+}
+
 /* Thinking dots */
 .msg-thinking {
   display: flex;
@@ -154,6 +161,43 @@
 @keyframes bounce {
   0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
   30% { transform: translateY(-5px); opacity: 1; }
+}
+
+/* Stats */
+.panel-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+  flex-shrink: 0;
+}
+
+.panel-stat {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.panel-stat-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.panel-stat-value {
+  font-size: 0.75rem;
+  font-family: var(--mono);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.panel-stat-detail {
+  color: var(--text-muted);
 }
 
 /* Input area */
