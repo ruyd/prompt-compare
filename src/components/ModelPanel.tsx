@@ -1,29 +1,23 @@
 import { useRef, useEffect, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import type { Message } from '../services/api'
-import type { MODEL_CONFIGS } from '../services/api'
+import { queryOpenRouter } from '../services/api'
+import type { Message, MODEL_CONFIGS } from '../services/api'
 import './ModelPanel.css'
 
 type Config = typeof MODEL_CONFIGS[keyof typeof MODEL_CONFIGS]
 
 interface Props {
   config: Config
+  apiKey: string
   sharedQuery: string
   onQueryConsumed: () => void
 }
 
-export function ModelPanel({ config, sharedQuery, onQueryConsumed }: Props) {
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem(`apikey_${config.id}`) ?? '')
-  const [keyVisible, setKeyVisible] = useState(false)
+export function ModelPanel({ config, apiKey, sharedQuery, onQueryConsumed }: Props) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
-
-  // Save API key to localStorage
-  useEffect(() => {
-    localStorage.setItem(`apikey_${config.id}`, apiKey)
-  }, [apiKey, config.id])
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -39,7 +33,7 @@ export function ModelPanel({ config, sharedQuery, onQueryConsumed }: Props) {
   }, [sharedQuery])
 
   const mutation = useMutation({
-    mutationFn: (msgs: Message[]) => config.queryFn({ messages: msgs, apiKey }),
+    mutationFn: (msgs: Message[]) => queryOpenRouter({ model: config.model, messages: msgs, apiKey }),
     onSuccess: (reply) => {
       setMessages(prev => [...prev, { role: 'assistant', content: reply }])
     },
@@ -73,7 +67,7 @@ export function ModelPanel({ config, sharedQuery, onQueryConsumed }: Props) {
         <div className="panel-title">
           <span className="panel-dot" />
           <span className="panel-name">{config.label}</span>
-          <span className="panel-subtitle">{config.subtitle}</span>
+          <span className="panel-subtitle">{config.model}</span>
         </div>
         <button
           className="panel-clear"
@@ -83,37 +77,6 @@ export function ModelPanel({ config, sharedQuery, onQueryConsumed }: Props) {
         >
           ✕
         </button>
-      </div>
-
-      {/* API Key row */}
-      <div className="panel-key-row">
-        <div className="panel-key-wrap">
-          <input
-            className="panel-key-input"
-            type={keyVisible ? 'text' : 'password'}
-            value={apiKey}
-            onChange={e => setApiKey(e.target.value)}
-            placeholder={config.placeholder}
-            autoComplete="off"
-            spellCheck={false}
-          />
-          <button
-            className="panel-key-toggle"
-            onClick={() => setKeyVisible(v => !v)}
-            title={keyVisible ? 'Hide key' : 'Show key'}
-          >
-            {keyVisible ? '🙈' : '👁'}
-          </button>
-        </div>
-        <a
-          className="panel-key-link"
-          href={config.docsUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          title="Get API key"
-        >
-          ↗
-        </a>
       </div>
 
       {/* Messages */}
@@ -150,7 +113,7 @@ export function ModelPanel({ config, sharedQuery, onQueryConsumed }: Props) {
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={apiKey ? 'Message… (Enter to send)' : 'Add API key above first'}
+          placeholder={apiKey ? 'Message… (Enter to send)' : 'Add OpenRouter key above first'}
           disabled={!apiKey || mutation.isPending}
         />
         <button

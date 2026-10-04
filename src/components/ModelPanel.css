@@ -67,68 +67,6 @@
 }
 
 /* API key row */
-.panel-key-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface-2);
-  flex-shrink: 0;
-}
-
-.panel-key-wrap {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.panel-key-input {
-  flex: 1;
-  background: none;
-  border: none;
-  outline: none;
-  color: var(--text);
-  font-size: 0.75rem;
-  font-family: var(--mono);
-  padding: 5px 8px;
-}
-
-.panel-key-input::placeholder {
-  color: var(--text-muted);
-}
-
-.panel-key-toggle {
-  background: none;
-  border: none;
-  padding: 4px 8px;
-  font-size: 0.8rem;
-  opacity: 0.6;
-  transition: opacity 0.15s;
-}
-
-.panel-key-toggle:hover {
-  opacity: 1;
-}
-
-.panel-key-link {
-  color: var(--text-muted);
-  text-decoration: none;
-  font-size: 0.85rem;
-  padding: 4px 6px;
-  border-radius: 4px;
-  transition: color 0.15s, background 0.15s;
-}
-
-.panel-key-link:hover {
-  color: var(--text);
-  background: var(--border);
-}
-
 /* Messages */
 .panel-messages {
   flex: 1;
