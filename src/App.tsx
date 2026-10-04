@@ -1,11 +1,14 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { ModelPanel } from './components/ModelPanel'
-import { MODEL_CONFIGS } from './services/api'
+import { MODEL_CONFIGS, OPENROUTER_KEYS_URL } from './services/api'
 import './App.css'
 
 const MODELS = Object.values(MODEL_CONFIGS)
+const API_KEY_STORAGE = 'apikey_openrouter'
 
 export default function App() {
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem(API_KEY_STORAGE) ?? '')
+  const [keyVisible, setKeyVisible] = useState(false)
   const [sharedDraft, setSharedDraft] = useState('')
   // Each panel gets its own "pending" shared query; reset after consumed
   const [pendingQuery, setPendingQuery] = useState<string>('')
@@ -13,8 +16,13 @@ export default function App() {
   const [activeQuery, setActiveQuery] = useState<string>('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
+  // Save API key to localStorage
+  useEffect(() => {
+    localStorage.setItem(API_KEY_STORAGE, apiKey)
+  }, [apiKey])
+
   function handleBroadcast() {
-    if (!sharedDraft.trim()) return
+    if (!sharedDraft.trim() || !apiKey) return
     setActiveQuery(sharedDraft.trim())
     setPendingQuery(sharedDraft.trim())
     setConsumedCount(0)
@@ -42,6 +50,34 @@ export default function App() {
           <span className="toolbar-tagline">Compare models side by side</span>
         </div>
 
+        <div className="toolbar-key">
+          <input
+            className="toolbar-key-input"
+            type={keyVisible ? 'text' : 'password'}
+            value={apiKey}
+            onChange={e => setApiKey(e.target.value)}
+            placeholder="OpenRouter API key (sk-or-…)"
+            autoComplete="off"
+            spellCheck={false}
+          />
+          <button
+            className="toolbar-key-toggle"
+            onClick={() => setKeyVisible(v => !v)}
+            title={keyVisible ? 'Hide key' : 'Show key'}
+          >
+            {keyVisible ? '🙈' : '👁'}
+          </button>
+          <a
+            className="toolbar-key-link"
+            href={OPENROUTER_KEYS_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Get API key"
+          >
+            ↗
+          </a>
+        </div>
+
         <div className="toolbar-query">
           <textarea
             ref={textareaRef}
@@ -60,7 +96,7 @@ export default function App() {
           <button
             className="toolbar-send"
             onClick={handleBroadcast}
-            disabled={!sharedDraft.trim()}
+            disabled={!sharedDraft.trim() || !apiKey}
           >
             Send to all
           </button>
@@ -73,6 +109,7 @@ export default function App() {
           <ModelPanel
             key={config.id}
             config={config}
+            apiKey={apiKey}
             sharedQuery={pendingQuery && consumedCount < MODELS.length ? activeQuery : ''}
             onQueryConsumed={handleConsumed}
           />

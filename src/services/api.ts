@@ -6,22 +6,25 @@ export interface Message {
 }
 
 export interface QueryPayload {
+  model: string
   messages: Message[]
   apiKey: string
 }
 
-// ── Claude (Anthropic) ────────────────────────────────────────────────────────
-export async function queryClause({ messages, apiKey }: QueryPayload): Promise<string> {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+export const OPENROUTER_KEYS_URL = 'https://openrouter.ai/settings/keys'
+
+// ── OpenRouter (OpenAI-compatible chat completions for every provider) ───────
+export async function queryOpenRouter({ model, messages, apiKey }: QueryPayload): Promise<string> {
+  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-calls': 'true',
+      Authorization: `Bearer ${apiKey}`,
+      'HTTP-Referer': window.location.origin,
+      'X-Title': 'Prompt Compare',
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
+      model,
       max_tokens: 2048,
       messages,
     }),
@@ -30,118 +33,42 @@ export async function queryClause({ messages, apiKey }: QueryPayload): Promise<s
     const err = await res.json().catch(() => ({}))
     throw new Error((err as { error?: { message?: string } }).error?.message ?? `HTTP ${res.status}`)
   }
-  const data = await res.json() as { content: Array<{ text: string }> }
-  return data.content[0]?.text ?? ''
-}
-
-// ── ChatGPT (OpenAI) ──────────────────────────────────────────────────────────
-export async function queryChatGPT({ messages, apiKey }: QueryPayload): Promise<string> {
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o',
-      messages,
-    }),
-  })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error((err as { error?: { message?: string } }).error?.message ?? `HTTP ${res.status}`)
-  }
-  const data = await res.json() as { choices: Array<{ message: { content: string } }> }
-  return data.choices[0]?.message.content ?? ''
-}
-
-// ── Gemini (Google) ───────────────────────────────────────────────────────────
-export async function queryGemini({ messages, apiKey }: QueryPayload): Promise<string> {
-  // Convert to Gemini's content format
-  const contents = messages.map(m => ({
-    role: m.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: m.content }],
-  }))
-
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents }),
-    },
-  )
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    const msg = (err as { error?: { message?: string } }).error?.message
-    throw new Error(msg ?? `HTTP ${res.status}`)
-  }
   const data = await res.json() as {
-    candidates: Array<{ content: { parts: Array<{ text: string }> } }>
+    choices?: Array<{ message: { content: string } }>
+    error?: { message?: string }
   }
-  return data.candidates[0]?.content.parts[0]?.text ?? ''
-}
-
-// ── DeepSeek ──────────────────────────────────────────────────────────────────
-export async function queryDeepSeek({ messages, apiKey }: QueryPayload): Promise<string> {
-  const res = await fetch('https://api.deepseek.com/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: 'deepseek-chat',
-      messages,
-    }),
-  })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error((err as { error?: { message?: string } }).error?.message ?? `HTTP ${res.status}`)
-  }
-  const data = await res.json() as { choices: Array<{ message: { content: string } }> }
-  return data.choices[0]?.message.content ?? ''
+  // OpenRouter can return 200 with an error body when the upstream provider fails mid-request
+  if (data.error) throw new Error(data.error.message ?? 'Unknown OpenRouter error')
+  return data.choices?.[0]?.message.content ?? ''
 }
 
 export const MODEL_CONFIGS = {
   claude: {
     id: 'claude' as ModelId,
     label: 'Claude',
-    subtitle: 'claude-sonnet-4-6',
+    model: 'anthropic/claude-sonnet-4.6',
     accentVar: '--accent-claude',
     accent: '#cc785c',
-    queryFn: queryClause,
-    placeholder: 'Anthropic API key (sk-ant-…)',
-    docsUrl: 'https://console.anthropic.com/settings/keys',
   },
   chatgpt: {
     id: 'chatgpt' as ModelId,
     label: 'ChatGPT',
-    subtitle: 'gpt-4o',
+    model: 'openai/gpt-4o',
     accentVar: '--accent-gpt',
     accent: '#19c37d',
-    queryFn: queryChatGPT,
-    placeholder: 'OpenAI API key (sk-…)',
-    docsUrl: 'https://platform.openai.com/api-keys',
   },
   gemini: {
     id: 'gemini' as ModelId,
     label: 'Gemini',
-    subtitle: 'gemini-2.0-flash',
+    model: 'google/gemini-2.0-flash-001',
     accentVar: '--accent-gemini',
     accent: '#4285f4',
-    queryFn: queryGemini,
-    placeholder: 'Google AI API key (AIza…)',
-    docsUrl: 'https://aistudio.google.com/app/apikey',
   },
   deepseek: {
     id: 'deepseek' as ModelId,
     label: 'DeepSeek',
-    subtitle: 'deepseek-chat',
+    model: 'deepseek/deepseek-chat',
     accentVar: '--accent-deepseek',
     accent: '#a855f7',
-    queryFn: queryDeepSeek,
-    placeholder: 'DeepSeek API key (sk-…)',
-    docsUrl: 'https://platform.deepseek.com/api_keys',
   },
 } as const
