@@ -4,6 +4,8 @@ export interface ReplyStats {
   promptTokens: number
   completionTokens: number
   durationMs: number
+  /** USD charged by OpenRouter, when reported */
+  cost?: number
 }
 
 export interface Message {
@@ -48,7 +50,7 @@ export async function queryOpenRouter({ model, messages, apiKey }: QueryPayload)
   }
   const data = await res.json() as {
     choices?: Array<{ message: { content: string } }>
-    usage?: { prompt_tokens?: number; completion_tokens?: number }
+    usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number }
     error?: { message?: string }
   }
   // OpenRouter can return 200 with an error body when the upstream provider fails mid-request
@@ -59,6 +61,7 @@ export async function queryOpenRouter({ model, messages, apiKey }: QueryPayload)
       promptTokens: data.usage?.prompt_tokens ?? 0,
       completionTokens: data.usage?.completion_tokens ?? 0,
       durationMs: performance.now() - start,
+      cost: data.usage?.cost,
     },
   }
 }
