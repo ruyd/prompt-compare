@@ -1,8 +1,20 @@
 export type ModelId = 'claude' | 'chatgpt' | 'gemini' | 'deepseek'
 
+export interface ReplyStats {
+  promptTokens: number
+  completionTokens: number
+  durationMs: number
+}
+
 export interface Message {
   role: 'user' | 'assistant'
   content: string
+  stats?: ReplyStats
+}
+
+export interface QueryResult {
+  content: string
+  stats: ReplyStats
 }
 
 export interface QueryPayload {
@@ -14,7 +26,8 @@ export interface QueryPayload {
 export const OPENROUTER_KEYS_URL = 'https://openrouter.ai/settings/keys'
 
 // ── OpenRouter (OpenAI-compatible chat completions for every provider) ───────
-export async function queryOpenRouter({ model, messages, apiKey }: QueryPayload): Promise<string> {
+export async function queryOpenRouter({ model, messages, apiKey }: QueryPayload): Promise<QueryResult> {
+  const start = performance.now()
   const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -26,7 +39,7 @@ export async function queryOpenRouter({ model, messages, apiKey }: QueryPayload)
     body: JSON.stringify({
       model,
       max_tokens: 2048,
-      messages,
+      messages: messages.map(({ role, content }) => ({ role, content })),
     }),
   })
   if (!res.ok) {
@@ -35,11 +48,19 @@ export async function queryOpenRouter({ model, messages, apiKey }: QueryPayload)
   }
   const data = await res.json() as {
     choices?: Array<{ message: { content: string } }>
+    usage?: { prompt_tokens?: number; completion_tokens?: number }
     error?: { message?: string }
   }
   // OpenRouter can return 200 with an error body when the upstream provider fails mid-request
   if (data.error) throw new Error(data.error.message ?? 'Unknown OpenRouter error')
-  return data.choices?.[0]?.message.content ?? ''
+  return {
+    content: data.choices?.[0]?.message.content ?? '',
+    stats: {
+      promptTokens: data.usage?.prompt_tokens ?? 0,
+      completionTokens: data.usage?.completion_tokens ?? 0,
+      durationMs: performance.now() - start,
+    },
+  }
 }
 
 export const MODEL_CONFIGS = {

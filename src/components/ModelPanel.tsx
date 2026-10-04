@@ -1,10 +1,18 @@
 import { useRef, useEffect, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { queryOpenRouter } from '../services/api'
-import type { Message, MODEL_CONFIGS } from '../services/api'
+import type { Message, MODEL_CONFIGS, ReplyStats } from '../services/api'
 import './ModelPanel.css'
 
 type Config = typeof MODEL_CONFIGS[keyof typeof MODEL_CONFIGS]
+
+function formatDuration(ms: number) {
+  return ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(1)}s`
+}
+
+function formatTokens(n: number) {
+  return n.toLocaleString()
+}
 
 interface Props {
   config: Config
@@ -34,8 +42,8 @@ export function ModelPanel({ config, apiKey, sharedQuery, onQueryConsumed }: Pro
 
   const mutation = useMutation({
     mutationFn: (msgs: Message[]) => queryOpenRouter({ model: config.model, messages: msgs, apiKey }),
-    onSuccess: (reply) => {
-      setMessages(prev => [...prev, { role: 'assistant', content: reply }])
+    onSuccess: ({ content, stats }) => {
+      setMessages(prev => [...prev, { role: 'assistant', content, stats }])
     },
     onError: (err: Error) => {
       setMessages(prev => [
@@ -44,6 +52,18 @@ export function ModelPanel({ config, apiKey, sharedQuery, onQueryConsumed }: Pro
       ])
     },
   })
+
+  const totals = messages.reduce<ReplyStats & { replies: number }>(
+    (acc, m) => m.stats
+      ? {
+          replies: acc.replies + 1,
+          promptTokens: acc.promptTokens + m.stats.promptTokens,
+          completionTokens: acc.completionTokens + m.stats.completionTokens,
+          durationMs: acc.durationMs + m.stats.durationMs,
+        }
+      : acc,
+    { replies: 0, promptTokens: 0, completionTokens: 0, durationMs: 0 },
+  )
 
   function sendMessage(text: string) {
     if (!text.trim() || mutation.isPending) return
@@ -91,6 +111,11 @@ export function ModelPanel({ config, apiKey, sharedQuery, onQueryConsumed }: Pro
           <div key={i} className={`msg msg-${msg.role}`}>
             <div className="msg-label">{msg.role === 'user' ? 'You' : config.label}</div>
             <div className="msg-content">{msg.content}</div>
+            {msg.stats && (
+              <div className="msg-stats">
+                {formatTokens(msg.stats.promptTokens)} in · {formatTokens(msg.stats.completionTokens)} out · {formatDuration(msg.stats.durationMs)}
+              </div>
+            )}
           </div>
         ))}
         {mutation.isPending && (
@@ -102,6 +127,28 @@ export function ModelPanel({ config, apiKey, sharedQuery, onQueryConsumed }: Pro
           </div>
         )}
         <div ref={bottomRef} />
+      </div>
+
+      {/* Stats */}
+      <div className="panel-stats">
+        <div className="panel-stat">
+          <span className="panel-stat-label">Tokens</span>
+          <span className="panel-stat-value">
+            {formatTokens(totals.promptTokens + totals.completionTokens)}
+            <span className="panel-stat-detail">
+              {' '}({formatTokens(totals.promptTokens)} in / {formatTokens(totals.completionTokens)} out)
+            </span>
+          </span>
+        </div>
+        <div className="panel-stat">
+          <span className="panel-stat-label">Time</span>
+          <span className="panel-stat-value">
+            {formatDuration(totals.durationMs)}
+            {totals.replies > 0 && (
+              <span className="panel-stat-detail"> (avg {formatDuration(totals.durationMs / totals.replies)})</span>
+            )}
+          </span>
+        </div>
       </div>
 
       {/* Input */}
